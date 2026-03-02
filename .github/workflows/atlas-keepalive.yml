@@ -1,0 +1,42 @@
+# 工作流名称（自定义，显示在Actions页面）
+name: MongoDB Atlas Keepalive
+
+# 触发规则：定时触发 + 手动触发（方便测试）
+on:
+  # 定时触发（cron表达式，UTC时间）
+  schedule:
+    # 每20天执行一次：每月1日、21日 UTC时间2点运行
+    # 时区说明：UTC+8（中国时区）= UTC+8小时，因此UTC 2点 = 中国时间10点
+    - cron: '0 2 1,21 * *'
+  # 手动触发（在Actions页面可点击「Run workflow」执行）
+  workflow_dispatch:
+
+# 要执行的任务
+jobs:
+  keepalive-job:
+    # 运行环境：GitHub提供的Ubuntu最新版
+    runs-on: ubuntu-latest
+    # 任务步骤
+    steps:
+      # 步骤1：拉取仓库代码到运行环境
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # 步骤2：配置Python环境（匹配pymongo依赖）
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'  # 推荐3.8+，兼容pymongo
+
+      # 步骤3：安装MongoDB Python驱动
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pymongo[srv]  # srv用于解析mongodb+srv://连接字符串
+
+      # 步骤4：执行保活脚本（核心步骤）
+      - name: Run keepalive script
+        # 传递Secrets中的MONGODB_URI到脚本的环境变量
+        env:
+          MONGODB_URI: ${{ secrets.MONGODB_URI }}
+        run: python keepalive.py
